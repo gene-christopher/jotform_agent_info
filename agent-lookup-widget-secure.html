@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Lookup Widget - Secure Version</title>
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #10b981;
+            --error-color: #ef4444;
+            --warning-color: #f59e0b;
+            --text-color: #1f2937;
+            --text-light: #6b7280;
+            --border-color: #e5e7eb;
+            --bg-color: #f9fafb;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .widget-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            max-width: 800px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .agent-info {
+            padding: 30px;
+        }
+
+        .agent-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .agent-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            margin-right: 20px;
+        }
+
+        .agent-details h2 {
+            color: var(--text-color);
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .agent-details p {
+            color: var(--text-light);
+            font-size: 14px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .info-group {
+            background: var(--bg-color);
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .info-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 14px;
+            color: var(--text-color);
+            word-break: break-word;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-inactive {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--primary-color);
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            text-align: center;
+            padding: 40px;
+            color: var(--error-color);
+        }
+
+        .error-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .security-warning {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #92400e;
+        }
+
+        .security-warning h4 {
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .security-warning p {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="widget-container">
+        <div class="security-warning">
+            <h4>🔒 Security Notice</h4>
+            <p>This widget includes enhanced security measures to prevent unauthorized access. It will only function when properly integrated with JotForm.</p>
+        </div>
+
+        <div id="loadingState" class="loading">
+            <div class="loading-spinner"></div>
+            <div>Validating access and loading agent information...</div>
+        </div>
+        
+        <div id="errorState" class="error" style="display: none;">
+            <div class="error-icon">⚠️</div>
+            <div>Unable to load agent information</div>
+        </div>
+        
+        <div id="securityErrorState" class="error" style="display: none;">
+            <div class="error-icon">🔒</div>
+            <div>Access Restricted - This widget can only be accessed through JotForm</div>
+        </div>
+        
+        <div id="agentInfo" class="agent-info" style="display: none;">
+            <div class="agent-header">
+                <div class="agent-avatar" id="agentAvatar">A</div>
+                <div class="agent-details">
+                    <h2 class="agent-name" id="agentName">Agent Name</h2>
+                    <p class="agent-id" id="agentId">Agent ID</p>
+                </div>
+            </div>
+            
+            <div class="info-grid">
+                <div class="info-group">
+                    <div class="info-label">Agent ID</div>
+                    <div class="info-value" id="look_up_AgentID">-</div>
+                </div>
+                
+                <div class="info-group">
+                    <div class="info-label">NPN</div>
+                    <div class="info-value" id="look_up_NPN">-</div>
+                </div>
+                
+                <div class="info-group">
+                    <div class="info-label">Status</div>
+                    <div class="info-value" id="look_up_Status">-</div>
+                </div>
+                
+                <div class="info-group">
+                    <div class="info-label">Division</div>
+                    <div class="info-value" id="look_up_Division">-</div>
+                </div>
+                
+                <div class="info-group">
+                    <div class="info-label">Contract Start Date</div>
+                    <div class="info-value" id="look_up_ContractStartDt">-</div>
+                </div>
+                
+                <div class="info-group">
+                    <div class="info-label">Contract Level</div>
+                    <div class="info-value" id="look_up_ContractLevel">-</div>
+                </div>
+                
+                <div class="info-group">
+                    <div class="info-label">First Name</div>
+                    <div class="info-value" id="look_up_FirstName">-</div>
+                </div>
+                
+                <div class="info-group">
+                    <div class="info-label">Last Name</div>
+                    <div class="info-value" id="look_up_LastName">-</div>
+                </div>
+                
+                <div class="info-group">
+                    <div class="info-label">Middle Name</div>
+                    <div class="info-value" id="look_up_MiddleName">-</div>
+                </div>
+                
+                <div class="info-group">
+                    <div class="info-label">Street Address</div>
+                    <div class="info-value" id="look_up_StreetAddress">-</div>
+                </div>
+                
+                <div class="info-group">
+                    <div class="info-label">City</div>
+                    <div class="info-value" id="look_up_City">-</div>
+                </div>
+                
+                <div class="info-group">
+                    <div class="info-label">County</div>
+                    <div class="info-value" id="look_up_County">-</div>
+                </div>
+                
+                <div class="info-group">
+                    <div class="info-label">State</div>
+                    <div class="info-value" id="look_up_State">-</div>
+                </div>
+                
+                <div class="info-group">
+                    <div class="info-label">ZIP</div>
+                    <div class="info-value" id="look_up_Zip">-</div>
+                </div>
+                
+                <div class="info-group">
+                    <div class="info-label">Agent Phone</div>
+                    <div class="info-value" id="look_up_AgentPhone">-</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Include JotForm Custom Widget API -->
+    <script src="//js.jotform.com/JotFormCustomWidget.min.js"></script>
+    
+    <script type="text/javascript">
+        /**
+         * Agent Lookup Widget - Secure Version
+         * Enhanced security measures to prevent unauthorized access
+         * Only functions when properly integrated with JotForm
+         */
+
+        // Global variables
+        let agentData = null;
+        const SECURITY_TOKEN = 'jotform-agent-lookup-2024'; // Change this to your secret token
+
+        // Enhanced security validation
+        function validateAccess() {
+            // 1. Check JotForm API availability
+            if (typeof JFCustomWidget === 'undefined') {
+                console.warn('Agent Lookup Widget: JotForm API not available');
+                showSecurityError();
+                return false;
+            }
+
+            // 2. Check referrer domain
+            const allowedDomains = [
+                'jotform.com',
+                'submit.jotform.com',
+                'form.jotform.com',
+                'www.jotform.com'
+            ];
+            
+            const referrer = document.referrer;
+            const isJotFormReferrer = allowedDomains.some(domain => 
+                referrer.includes(domain)
+            );
+            
+            // 3. Check if in JotForm iframe
+            const isJotFormIframe = window.parent !== window && 
+                window.parent.location.hostname.includes('jotform.com');
+            
+            // 4. Check for JotForm-specific URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const hasJotFormParams = urlParams.has('qid') || urlParams.has('isOpenedInPortal');
+            
+            // 5. Check for security token (optional - you can set this in JotForm widget settings)
+            const hasSecurityToken = urlParams.get('token') === SECURITY_TOKEN;
+            
+            if (!isJotFormReferrer && !isJotFormIframe && !hasJotFormParams && !hasSecurityToken) {
+                console.warn('Agent Lookup Widget: Access denied - security validation failed');
+                showSecurityError();
+                return false;
+            }
+            
+            return true;
+        }
+
+        // Wait for JotForm Custom Widget API to be ready
+        JFCustomWidget.subscribe("ready", function() {
+            console.log('Agent Lookup Widget: Widget ready');
+            
+            // Validate access before proceeding
+            if (!validateAccess()) {
+                return;
+            }
+            
+            // Subscribe to form submission
+            JFCustomWidget.subscribe("submit", function() {
+                console.log('Agent Lookup Widget: Form submit triggered');
+                handleFormSubmit();
+            });
+            
+            // Subscribe to form reset
+            JFCustomWidget.subscribe("reset", function() {
+                console.log('Agent Lookup Widget: Form reset triggered');
+                resetWidget();
+            });
+        });
+
+        /**
+         * Handle form submission - send agent data to JotForm
+         */
+        function handleFormSubmit() {
+            console.log('Agent Lookup Widget: Handling form submit');
+            
+            if (agentData) {
+                const submitData = {
+                    valid: true,
+                    value: JSON.stringify(agentData)
+                };
+                
+                console.log('Agent Lookup Widget: Sending data to JotForm:', submitData);
+                JFCustomWidget.sendSubmit(submitData);
+            } else {
+                const submitData = {
+                    valid: false,
+                    value: ""
+                };
+                
+                console.log('Agent Lookup Widget: No data available, sending empty response');
+                JFCustomWidget.sendSubmit(submitData);
+            }
+        }
+
+        /**
+         * Reset the widget to initial state
+         */
+        function resetWidget() {
+            console.log('Agent Lookup Widget: Resetting widget');
+            showLoading();
+            agentData = null;
+        }
+
+        /**
+         * Show loading state
+         */
+        function showLoading() {
+            document.getElementById('loadingState').style.display = 'block';
+            document.getElementById('errorState').style.display = 'none';
+            document.getElementById('securityErrorState').style.display = 'none';
+            document.getElementById('agentInfo').style.display = 'none';
+        }
+
+        /**
+         * Show error state
+         */
+        function showError() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'block';
+            document.getElementById('securityErrorState').style.display = 'none';
+            document.getElementById('agentInfo').style.display = 'none';
+        }
+
+        /**
+         * Show security error state
+         */
+        function showSecurityError() {
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'none';
+            document.getElementById('securityErrorState').style.display = 'block';
+            document.getElementById('agentInfo').style.display = 'none';
+        }
+
+        /**
+         * Display agent information in the widget
+         * @param {Object} data - Agent data object
+         */
+        function showAgentInfo(data) {
+            console.log('Agent Lookup Widget: Displaying agent info:', data);
+            
+            agentData = data;
+            
+            // Update header with agent name and ID
+            const firstName = data.look_up_FirstName || '';
+            const lastName = data.look_up_LastName || '';
+            const fullName = `${firstName} ${lastName}`.trim() || 'Unknown Agent';
+            
+            document.getElementById('agentName').textContent = fullName;
+            document.getElementById('agentId').textContent = `ID: ${data.look_up_AgentID || 'N/A'}`;
+            
+            // Update avatar with first letter of name
+            document.getElementById('agentAvatar').textContent = fullName.charAt(0).toUpperCase();
+            
+            // Update all information fields
+            const fields = [
+                'look_up_AgentID', 'look_up_NPN', 'look_up_agent_name', 'look_up_OptID',
+                'look_up_Status', 'look_up_Division', 'look_up_ContractStartDt', 'look_up_ContractLevel',
+                'look_up_FirstName', 'look_up_LastName', 'look_up_MiddleName',
+                'look_up_StreetAddress', 'look_up_City', 'look_up_County', 'look_up_State',
+                'look_up_Zip', 'look_up_AgentPhone'
+            ];
+            
+            fields.forEach(field => {
+                const element = document.getElementById(field);
+                if (element) {
+                    element.textContent = data[field] || '-';
+                }
+            });
+            
+            // Update status badge with appropriate styling
+            const statusElement = document.getElementById('look_up_Status');
+            if (statusElement && data.look_up_Status) {
+                statusElement.className = 'info-value status-badge status-' + data.look_up_Status.toLowerCase();
+            }
+            
+            // Show the agent info section
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('errorState').style.display = 'none';
+            document.getElementById('securityErrorState').style.display = 'none';
+            document.getElementById('agentInfo').style.display = 'block';
+        }
+
+        /**
+         * Function to be called by JotForm webhook
+         * This is the main entry point for receiving agent data
+         * @param {Object} data - Complete agent data object from Power Automate
+         */
+        function updateAgentInfo(data) {
+            console.log('Agent Lookup Widget: Received agent data from webhook:', data);
+            
+            if (data && data.data) {
+                showAgentInfo(data.data);
+            } else {
+                console.error('Agent Lookup Widget: Invalid data structure received');
+                showError();
+            }
+        }
+
+        // Make the function globally available for JotForm webhook to call
+        window.updateAgentInfo = updateAgentInfo;
+
+        // Export for potential module usage
+        if (typeof module !== 'undefined' && module.exports) {
+            module.exports = { updateAgentInfo, showAgentInfo };
+        }
+    </script>
+</body>
+</html>
